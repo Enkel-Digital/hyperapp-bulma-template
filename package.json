@@ -1,0 +1,30 @@
+{
+  "name": "hyperapp-bulma-template",
+  "version": "0.0.1",
+  "description": "Template for using hyperapp with bulma",
+  "scripts": {
+    "start": "node ./build.js --watch",
+    "serve": "node ./build.js --watch",
+    "build": "node ./build.js"
+  },
+  "dependencies": {
+    "hyperapp": "^2.0.19"
+  },
+  "keywords": [
+    "hyperapp",
+    "bulma"
+  ],
+  "author": "JJ",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Enkel-Digital/hyperapp-bulma-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Enkel-Digital/hyperapp-bulma-template/issues"
+  },
+  "homepage": "https://github.com/Enkel-Digital/hyperapp-bulma-template#readme",
+  "devDependencies": {
+    "esbuild": "^0.12.28",
+    "live-server": "^1.2.1"
+  }
+}
