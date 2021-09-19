@@ -4,6 +4,9 @@ node_modules/
 # Build output directories
 dist/
 
+# Build output analysis file
+esbuild-metafile.json
+
 # Optional npm cache directory
 .npm
 

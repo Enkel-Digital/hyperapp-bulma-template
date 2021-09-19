@@ -12,6 +12,7 @@ const build = (options = {}) =>
     minify: true,
     sourcemap: true,
     watch: false,
+    metafile: true,
 
     // Override default options if needed
     ...options,
@@ -19,9 +20,10 @@ const build = (options = {}) =>
 
 // Wrapper function aroud build method for development use
 // In watch mode, build without minifying, and since not minified no need for sourcemap
-const watchMode = () => build({ watch: true, minify: false, sourcemap: false });
+const watchMode = () =>
+  build({ watch: true, minify: false, sourcemap: false, metafile: false });
 
-const { mkdir, copyFile, watch } = require("fs/promises");
+const { rm, mkdir, copyFile, watch, writeFile } = require("fs/promises");
 
 const copyHTML = async () => copyFile("./src/index.html", "./dist/index.html");
 
@@ -61,7 +63,8 @@ async function main() {
     startDevServer();
   } else {
     copyHTML();
-    build();
+    const { metafile } = await build();
+    await writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
   }
 }
 

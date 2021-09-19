@@ -27,3 +27,5 @@ Builds for production and writes output to /dist
 ```bash
 npm run build
 ```
+
+After building, you can also use <https://www.bundle-buddy.com/esbuild> to analyze your bundle using the generated `esbuild-metafile.json` file in your directory root.
