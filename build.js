@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
+const esbuild = require("esbuild");
+const { rm, mkdir, copyFile, watch, writeFile } = require("fs/promises");
+
 // Wrapper function around esbuild, use function parameter to override default options
 // Pass in nothing for production build
 const build = (options = {}) =>
-  require("esbuild").build({
+  esbuild.build({
     entryPoints: ["src/main.js"],
     outfile: "dist/main.js",
 
@@ -22,8 +25,6 @@ const build = (options = {}) =>
 // In watch mode, build without minifying, and since not minified no need for sourcemap
 const watchMode = () =>
   build({ watch: true, minify: false, sourcemap: false, metafile: false });
-
-const { rm, mkdir, copyFile, watch, writeFile } = require("fs/promises");
 
 const copyHTML = async () => copyFile("./src/index.html", "./dist/index.html");
 
@@ -63,8 +64,13 @@ async function main() {
     startDevServer();
   } else {
     copyHTML();
+
+    // Build and get back the metafile
     const { metafile } = await build();
-    await writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
+    // Fire off a call to pretty print out a basic analysis using the metafile
+    esbuild.analyzeMetafile(metafile, { verbose: true }).then(console.log);
+    // Save metafile for user to use later with tools like bundle buddy
+    writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
   }
 }
 
