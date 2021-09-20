@@ -4,19 +4,17 @@ const esbuild = require("esbuild");
 const { rm, mkdir, copyFile, watch, writeFile, stat } = require("fs/promises");
 
 // Wrapper function around esbuild, use function parameter to override default options
-// Pass in nothing for production build
-const build = (options = {}) =>
+const productionBuild = (options = {}) =>
   esbuild.build({
     // There are only 2 main entry points, 1 for all the user JS files and 1 for bulma
     // Setting custom output path here to prevent esbuild from copying over the dir structure
     // In production builds, bulma is already pre processed and written to dist/bulma.css directly,
     // So there is no need for esbuild to do anything about it.
-    // However in development builds, bulma's path is needed for esbuild to copy the lib into dist
     // https://esbuild.github.io/api/#entry-points
     entryPoints: { main: "src/main.js" },
     outdir: "dist",
 
-    // Default options for building for production
+    // Default options for production mode
     bundle: true,
     minify: true,
     sourcemap: true,
@@ -30,20 +28,35 @@ const build = (options = {}) =>
     ...options,
   });
 
-// Wrapper function aroud build method for development use
+// Wrapper function around esbuild, use function parameter to override default options
+// This is for development use, watching files for changes and rebuilding when changed
 // In watch mode, build without minifying, and since not minified no need for sourcemap
-const watchMode = () =>
-  build({
+const developmentBuild = (options = {}) =>
+  esbuild.build({
+    // There are only 2 main entry points, 1 for all the user JS files and 1 for bulma
+    // Setting custom output path here to prevent esbuild from copying over the dir structure
+    // In development builds, bulma's path is needed for esbuild to copy the lib into dist
+    // https://esbuild.github.io/api/#entry-points
     entryPoints: {
       main: "src/main.js",
+
       // In dev/watch mode, use the full bulma lib as there wont be a PurgeCSS step to minify CSS output
       bulma: "node_modules/bulma/css/bulma.min.css",
     },
+    outdir: "dist",
 
+    // Default options for development mode
+    bundle: true,
     watch: true,
     minify: false,
     sourcemap: false,
     metafile: false,
+
+    // @todo Might support other file types like images and more
+    // https://esbuild.github.io/content-types/#external-file
+
+    // Override default options if needed
+    ...options,
   });
 
 const copyHTML = async () => copyFile("./src/index.html", "./dist/index.html");
@@ -93,10 +106,11 @@ async function main() {
   await mkdir("./dist").catch(() => {});
 
   if (process.argv.includes("--watch")) {
-    watchMode();
-    await copyHTML();
+    copyHTML();
     // watchHTML();
 
+    // Start server after finish building
+    await developmentBuild();
     startDevServer();
   } else {
     copyHTML();
@@ -118,7 +132,7 @@ async function main() {
       );
 
     // Build and get back the metafile
-    const { metafile } = await build();
+    const { metafile } = await productionBuild();
     // Fire off async task to Save metafile for user to use later with tools like bundle buddy
     writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
     // Fire off a call to pretty print out a basic analysis using the metafile
