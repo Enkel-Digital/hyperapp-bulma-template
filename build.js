@@ -1,59 +1,59 @@
 #!/usr/bin/env node
 
 const esbuild = require("esbuild");
-const { rm, mkdir, copyFile, watch, writeFile, stat } = require("fs/promises");
 
-// Wrapper function around esbuild, use function parameter to override default options
-const productionBuild = (options = {}) =>
+const {
+  rm,
+  mkdir,
+  copyFile,
+  watch,
+  readFile,
+  writeFile,
+  stat,
+} = require("fs/promises");
+
+// Wrapper function around esbuild with shared options, use function parameter to override default options
+const builder = (options = {}) =>
   esbuild.build({
-    // There are only 2 main entry points, 1 for all the user JS files and 1 for bulma
+    // There are 2 main entry points linked from index.html, 1 for all the user JS files and 1 for bulma
     // Setting custom output path here to prevent esbuild from copying over the dir structure
-    // In production builds, bulma is already pre processed and written to dist/bulma.css directly,
-    // So there is no need for esbuild to do anything about it.
+    // In both development and production builds, bulma is written to dist/bulma.css before calling builder
     // https://esbuild.github.io/api/#entry-points
     entryPoints: { main: "src/main.js" },
     outdir: "dist",
 
-    // Default options for production mode
+    // Default shared options
     bundle: true,
-    minify: true,
-    sourcemap: true,
-    watch: false,
-    metafile: true,
 
     // @todo Might support other file types like images and more
     // https://esbuild.github.io/content-types/#external-file
+    // plugins: [require("esbuild-plugin-sass")()],
 
     // Override default options if needed
     ...options,
   });
 
-// Wrapper function around esbuild, use function parameter to override default options
+// Wrapper function around builder, use function parameter to override default options
+const productionBuild = (options = {}) =>
+  builder({
+    minify: true,
+    sourcemap: true,
+    watch: false,
+    metafile: true,
+
+    // Override default options if needed
+    ...options,
+  });
+
+// Wrapper function around builder, use function parameter to override default options
 // This is for development use, watching files for changes and rebuilding when changed
 // In watch mode, build without minifying, and since not minified no need for sourcemap
 const developmentBuild = (options = {}) =>
-  esbuild.build({
-    // There are only 2 main entry points, 1 for all the user JS files and 1 for bulma
-    // Setting custom output path here to prevent esbuild from copying over the dir structure
-    // In development builds, bulma's path is needed for esbuild to copy the lib into dist
-    // https://esbuild.github.io/api/#entry-points
-    entryPoints: {
-      main: "src/main.js",
-
-      // In dev/watch mode, use the full bulma lib as there wont be a PurgeCSS step to minify CSS output
-      bulma: "node_modules/bulma/css/bulma.min.css",
-    },
-    outdir: "dist",
-
-    // Default options for development mode
-    bundle: true,
-    watch: true,
+  builder({
     minify: false,
     sourcemap: false,
+    watch: true,
     metafile: false,
-
-    // @todo Might support other file types like images and more
-    // https://esbuild.github.io/content-types/#external-file
 
     // Override default options if needed
     ...options,
@@ -109,12 +109,18 @@ async function main() {
     copyHTML();
     // watchHTML();
 
+    // In development builds, bulma lib is copied directly to dist/bulma.css without a minifying step
+    readFile("node_modules/bulma/css/bulma.min.css").then((bulma) =>
+      writeFile("./dist/bulma.css", bulma)
+    );
+
     // Start server after finish building
     await developmentBuild();
     startDevServer();
   } else {
     copyHTML();
 
+    // In production builds, bulma is pre processed and written to dist/bulma.css directly
     // Treeshake/minify bulma library using purge CSS to remove unused classes
     // Write minified code into dist directly as the final build output
     // Print minified CSS file size in kB (1000 bytes) like esbuild analyze with 1 decimal point
