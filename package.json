@@ -8,6 +8,7 @@
     "build": "node ./build.js"
   },
   "dependencies": {
+    "bulma": "^0.9.3",
     "hyperapp": "^2.0.19"
   },
   "keywords": [
@@ -25,6 +26,7 @@
   "homepage": "https://github.com/Enkel-Digital/hyperapp-bulma-template#readme",
   "devDependencies": {
     "esbuild": "^0.12.28",
-    "live-server": "^1.2.1"
+    "live-server": "^1.2.1",
+    "purgecss": "^4.0.3"
   }
 }

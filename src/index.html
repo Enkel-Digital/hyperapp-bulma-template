@@ -10,8 +10,11 @@
 
     <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-    <!-- <link rel='stylesheet' type='text/css' media='screen' href='main.css'> -->
+    <!-- Link to the main/entry JS file, where all is bundled together using esbuild -->
     <script type="module" src="main.js"></script>
+
+    <!-- Linked to the processed bulma CSS file, where unused css classes are removed using PurgeCSS -->
+    <link rel='stylesheet' type='text/css' media='screen' href='bulma.css'>
 </head>
 
 <body>

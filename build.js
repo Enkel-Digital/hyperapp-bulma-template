@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 
 const esbuild = require("esbuild");
-const { rm, mkdir, copyFile, watch, writeFile } = require("fs/promises");
+const { rm, mkdir, copyFile, watch, writeFile, stat } = require("fs/promises");
 
 // Wrapper function around esbuild, use function parameter to override default options
 // Pass in nothing for production build
 const build = (options = {}) =>
   esbuild.build({
-    entryPoints: ["src/main.js"],
-    outfile: "dist/main.js",
+    // There are only 2 main entry points, 1 for all the user JS files and 1 for bulma
+    // Setting custom output path here to prevent esbuild from copying over the dir structure
+    // In production builds, bulma is already pre processed and written to dist/bulma.css directly,
+    // So there is no need for esbuild to do anything about it.
+    // However in development builds, bulma's path is needed for esbuild to copy the lib into dist
+    // https://esbuild.github.io/api/#entry-points
+    entryPoints: { main: "src/main.js" },
+    outdir: "dist",
 
     // Default options for building for production
     bundle: true,
@@ -17,6 +23,9 @@ const build = (options = {}) =>
     watch: false,
     metafile: true,
 
+    // @todo Might support other file types like images and more
+    // https://esbuild.github.io/content-types/#external-file
+
     // Override default options if needed
     ...options,
   });
@@ -24,7 +33,18 @@ const build = (options = {}) =>
 // Wrapper function aroud build method for development use
 // In watch mode, build without minifying, and since not minified no need for sourcemap
 const watchMode = () =>
-  build({ watch: true, minify: false, sourcemap: false, metafile: false });
+  build({
+    entryPoints: {
+      main: "src/main.js",
+      // In dev/watch mode, use the full bulma lib as there wont be a PurgeCSS step to minify CSS output
+      bulma: "node_modules/bulma/css/bulma.min.css",
+    },
+
+    watch: true,
+    minify: false,
+    sourcemap: false,
+    metafile: false,
+  });
 
 const copyHTML = async () => copyFile("./src/index.html", "./dist/index.html");
 
@@ -32,6 +52,25 @@ const copyHTML = async () => copyFile("./src/index.html", "./dist/index.html");
 // const watchHTML = async () => {
 //   for await (const _ of watch("./src/index.html")) copyHTML();
 // };
+
+// Function to Treeshake/minify bulma library using purge CSS to remove unused classes
+async function purgeCSS() {
+  // Since only used during production build, only import dependency here when fn is called
+  const { PurgeCSS } = require("purgecss");
+
+  const purgeCSSResult = await new PurgeCSS().purge({
+    // Look at all html and JS files, but primarily the JS files of the hyperapp project
+    content: ["**/*.html", "**/*.js"],
+
+    // Only loading the minified bulma css file for now
+    // @todo Might let user/esbuild pass in files if there are user CSS files
+    css: ["node_modules/bulma/css/bulma.min.css"],
+  });
+
+  // Since only minifying the bulma css file, there should only be 1 file output
+  // Take the generated CSS string out from the first element (bulma lib) and return it
+  return purgeCSSResult[0].css;
+}
 
 // Start a dev server using live-server with some default configs
 const startDevServer = () =>
@@ -47,9 +86,6 @@ const startDevServer = () =>
     open: false, // When false, it won't load your browser by default.
 
     // watch: "/dist",// Watches everything by default
-    // ignore: "scss", // comma-separated string for paths to ignore
-    // mount: [['/components', './node_modules']], // Mount a directory to a route.
-    // middleware: [function(req, res, next) { next(); }] // Takes an array of Connect-compatible middleware that are injected into the server middleware stack
   });
 
 async function main() {
@@ -65,12 +101,28 @@ async function main() {
   } else {
     copyHTML();
 
+    // Treeshake/minify bulma library using purge CSS to remove unused classes
+    // Write minified code into dist directly as the final build output
+    // Print minified CSS file size in kB (1000 bytes) like esbuild analyze with 1 decimal point
+    // This process is fired off FIRST before esbuild process as purgeCSS is much slower,
+    // Thus this is fired off and not awaited before starting esbuild concurrently.
+    purgeCSS()
+      .then((miniCSS) => writeFile("./dist/bulma.css", miniCSS))
+      .then(() => stat("./dist/bulma.css"))
+      .then((stat) =>
+        console.log(
+          `  dist/bulma.css ──────────────────── ${(stat.size / 1000).toFixed(
+            1
+          )}kB`
+        )
+      );
+
     // Build and get back the metafile
     const { metafile } = await build();
+    // Fire off async task to Save metafile for user to use later with tools like bundle buddy
+    writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
     // Fire off a call to pretty print out a basic analysis using the metafile
     esbuild.analyzeMetafile(metafile, { verbose: true }).then(console.log);
-    // Save metafile for user to use later with tools like bundle buddy
-    writeFile("./esbuild-metafile.json", JSON.stringify(metafile));
   }
 }
 
