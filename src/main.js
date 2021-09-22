@@ -1,6 +1,7 @@
 /* Defaults to a hyperapp demo application */
 
-import { h, text, app } from "hyperapp";
+import { app, text } from "hyperapp";
+import { main, h1, input, ul, li, button } from "@hyperapp/html";
 
 const AddTodo = (state) => ({
   ...state,
@@ -16,15 +17,14 @@ const NewValue = (state, event) => ({
 app({
   init: { todos: [], value: "" },
   view: ({ todos, value }) =>
-    h("main", {}, [
-      h("h1", {}, text("To do list")),
-      h("input", { type: "text", oninput: NewValue, value }),
-      h(
-        "ul",
-        {},
-        todos.map((todo) => h("li", {}, text(todo)))
+    main([
+      h1(text("To do list")),
+      input({ type: "text", class: "input", oninput: NewValue, value }),
+      ul(todos.map((todo) => li(text(todo)))),
+      button(
+        { class: "button is-success is-light is-fullwidth", onclick: AddTodo },
+        text("New!")
       ),
-      h("button", { onclick: AddTodo }, text("New!")),
     ]),
 
   node: document.getElementById("app"),
